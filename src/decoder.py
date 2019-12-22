@@ -341,7 +341,7 @@ def decode(dec_start_id,
                                             bow_cond=bow_cond,
                                             bow_cond_gate_proj=bow_cond_gate_proj)
 
-    dec_logits_train, dec_prob_train, pointer_ent, avg_max_ptr, avg_num_copy = \
+    dec_logic_train, dec_prob_train, pointer_ent, avg_max_ptr, avg_num_copy = \
         decoding_train(
             dec_inputs,
             dec_cell,
@@ -359,5 +359,5 @@ def decode(dec_start_id,
             dec_ptr_k_proj=dec_ptr_k_proj,
             bow_cond=bow_cond,
             bow_cond_gate_proj=bow_cond_gate_proj)
-    return (dec_outputs_predict, dec_logits_train, dec_prob_train, pointer_ent,
+    return (dec_outputs_predict, dec_logic_train, dec_prob_train, pointer_ent,
             avg_max_ptr, avg_num_copy)

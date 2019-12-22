@@ -147,7 +147,7 @@ class Controller(object):
                 # for bi in range(100):
                 batch_dict = dset.next_batch("train", batch_size, model_name)
                 batch_dict["drop_out"] = drop_out
-                output_dict = model.train_step(sess, batch_dict, ei)
+                output_dict = model.train_step(sess, batch_dict)
                 train_log.update(output_dict)
 
                 if (bi % 20 == 0):
