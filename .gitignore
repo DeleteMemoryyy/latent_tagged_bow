@@ -1,0 +1,22 @@
+# Initially taken from Github's Python gitignore file
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# vscode
+.vscode
+
+# Pycharm
+.idea/
+
+output/
+model/
+

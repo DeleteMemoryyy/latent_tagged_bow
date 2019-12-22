@@ -1,0 +1,289 @@
+TensorFlow 2.0 Upgrade Script
+-----------------------------
+Converted 8 files
+Detected 7 issues that require attention
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+File: ./v1src\decoder.py
+--------------------------------------------------------------------------------
+./v1src\decoder.py:107:17: WARNING: tf.nn.embedding_lookup requires manual check. `partition_strategy` has been removed from tf.nn.embedding_lookup.  The 'div' strategy will be used by default.
+./v1src\decoder.py:119:17: WARNING: tf.nn.embedding_lookup requires manual check. `partition_strategy` has been removed from tf.nn.embedding_lookup.  The 'div' strategy will be used by default.
+--------------------------------------------------------------------------------
+File: ./v1src\lbow.py
+--------------------------------------------------------------------------------
+./v1src\lbow.py:188:20: WARNING: tf.nn.embedding_lookup requires manual check. `partition_strategy` has been removed from tf.nn.embedding_lookup.  The 'div' strategy will be used by default.
+./v1src\lbow.py:302:31: WARNING: tf.get_variable requires manual check. tf.get_variable returns ResourceVariables by default in 2.0, which have well-defined semantics and are stricter about shapes. You can disable this behavior by passing use_resource=False, or by calling tf.compat.v1.disable_resource_variables().
+./v1src\lbow.py:308:25: WARNING: tf.nn.embedding_lookup requires manual check. `partition_strategy` has been removed from tf.nn.embedding_lookup.  The 'div' strategy will be used by default.
+./v1src\lbow.py:309:25: WARNING: tf.nn.embedding_lookup requires manual check. `partition_strategy` has been removed from tf.nn.embedding_lookup.  The 'div' strategy will be used by default.
+--------------------------------------------------------------------------------
+File: ./v1src\train.py
+--------------------------------------------------------------------------------
+./v1src\train.py:284:28: WARNING: *.save requires manual check. (This warning is only applicable if the code saves a tf.Keras model) Keras model.save now saves to the Tensorflow SavedModel format by default, instead of HDF5. To continue saving to HDF5, add the argument save_format='h5' to the save() function.
+================================================================================
+Detailed log follows:
+
+================================================================================
+================================================================================
+Input tree: './v1src'
+================================================================================
+--------------------------------------------------------------------------------
+Processing file './v1src\\cnn.py'
+ outputting to './v2src\\cnn.py'
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+Processing file './v1src\\config.py'
+ outputting to './v2src\\config.py'
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+Processing file './v1src\\dataloader.py'
+ outputting to './v2src\\dataloader.py'
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+Processing file './v1src\\decoder.py'
+ outputting to './v2src\\decoder.py'
+--------------------------------------------------------------------------------
+
+25:9: INFO: Renamed 'tf.variable_scope' to 'tf.compat.v1.variable_scope'
+30:20: INFO: Renamed 'tf.layers.dense' to 'tf.compat.v1.layers.dense'
+31:55: INFO: tf.random_normal_initializer requires manual check. Initializers no longer have the dtype argument in the constructor or partition_info argument in the __call__ method.
+The calls have been converted to compat.v1 for safety (even though they may already have been correct).
+31:55: INFO: Renamed 'tf.random_normal_initializer' to 'tf.compat.v1.random_normal_initializer'
+33:53: INFO: tf.constant_initializer requires manual check. Initializers no longer have the dtype argument in the constructor or partition_info argument in the __call__ method.
+The calls have been converted to compat.v1 for safety (even though they may already have been correct).
+33:53: INFO: Renamed 'tf.constant_initializer' to 'tf.compat.v1.constant_initializer'
+33:88: INFO: Renamed 'tf.AUTO_REUSE' to 'tf.compat.v1.AUTO_REUSE'
+40:25: INFO: Renamed 'tf.layers.dense' to 'tf.compat.v1.layers.dense'
+42:60: INFO: tf.random_normal_initializer requires manual check. Initializers no longer have the dtype argument in the constructor or partition_info argument in the __call__ method.
+The calls have been converted to compat.v1 for safety (even though they may already have been correct).
+42:60: INFO: Renamed 'tf.random_normal_initializer' to 'tf.compat.v1.random_normal_initializer'
+44:58: INFO: tf.constant_initializer requires manual check. Initializers no longer have the dtype argument in the constructor or partition_info argument in the __call__ method.
+The calls have been converted to compat.v1 for safety (even though they may already have been correct).
+44:58: INFO: Renamed 'tf.constant_initializer' to 'tf.compat.v1.constant_initializer'
+44:93: INFO: Renamed 'tf.AUTO_REUSE' to 'tf.compat.v1.AUTO_REUSE'
+60:9: INFO: Renamed 'tf.variable_scope' to 'tf.compat.v1.variable_scope'
+61:21: INFO: Added keywords to args of function 'tf.shape'
+62:29: INFO: Added keywords to args of function 'tf.shape'
+64:18: INFO: Added keywords to args of function 'tf.transpose'
+74:18: INFO: Added keywords to args of function 'tf.reduce_sum'
+107:17: INFO: Added keywords to args of function 'tf.nn.embedding_lookup'
+107:17: WARNING: tf.nn.embedding_lookup requires manual check. `partition_strategy` has been removed from tf.nn.embedding_lookup.  The 'div' strategy will be used by default.
+113:20: INFO: Added keywords to args of function 'tf.argmax'
+119:17: INFO: Added keywords to args of function 'tf.nn.embedding_lookup'
+119:17: WARNING: tf.nn.embedding_lookup requires manual check. `partition_strategy` has been removed from tf.nn.embedding_lookup.  The 'div' strategy will be used by default.
+152:23: INFO: Added keywords to args of function 'tf.reduce_mean'
+152:38: INFO: Added keywords to args of function 'tf.transpose'
+162:24: INFO: Added keywords to args of function 'tf.argmax'
+168:16: INFO: Added keywords to args of function 'tf.reduce_sum'
+170:21: INFO: Added keywords to args of function 'tf.multinomial'
+170:21: INFO: Renamed 'tf.multinomial' to 'tf.random.categorical'
+171:16: INFO: Renamed 'tf.log' to 'tf.math.log'
+173:24: INFO: Added keywords to args of function 'tf.reduce_sum'
+197:18: INFO: Added keywords to args of function 'tf.transpose'
+198:20: INFO: Added keywords to args of function 'tf.transpose'
+221:13: INFO: Added keywords to args of function 'tf.shape'
+224:13: INFO: Added keywords to args of function 'tf.shape'
+226:17: INFO: Added keywords to args of function 'tf.transpose'
+261:17: INFO: Added keywords to args of function 'tf.transpose'
+317:23: INFO: Added keywords to args of function 'tf.reduce_mean'
+317:38: INFO: Added keywords to args of function 'tf.transpose'
+349:23: INFO: Added keywords to args of function 'tf.transpose'
+350:19: INFO: Added keywords to args of function 'tf.transpose'
+351:21: INFO: Added keywords to args of function 'tf.transpose'
+352:18: INFO: Added keywords to args of function 'tf.transpose'
+354:18: INFO: Added keywords to args of function 'tf.reduce_max'
+355:18: INFO: Added keywords to args of function 'tf.reduce_sum'
+356:32: INFO: Renamed 'tf.log' to 'tf.math.log'
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+Processing file './v1src\\lbow.py'
+ outputting to './v2src\\lbow.py'
+--------------------------------------------------------------------------------
+
+19:11: INFO: Renamed 'tf.nn.rnn_cell.LSTMCell' to 'tf.compat.v1.nn.rnn_cell.LSTMCell'
+20:47: INFO: tf.random_normal_initializer requires manual check. Initializers no longer have the dtype argument in the constructor or partition_info argument in the __call__ method.
+The calls have been converted to compat.v1 for safety (even though they may already have been correct).
+20:47: INFO: Renamed 'tf.random_normal_initializer' to 'tf.compat.v1.random_normal_initializer'
+21:11: INFO: Renamed 'tf.nn.rnn_cell.DropoutWrapper' to 'tf.compat.v1.nn.rnn_cell.DropoutWrapper'
+24:15: INFO: Renamed 'tf.nn.rnn_cell.ResidualWrapper' to 'tf.compat.v1.nn.rnn_cell.ResidualWrapper'
+48:12: INFO: Renamed 'tf.random_uniform' to 'tf.random.uniform'
+49:16: INFO: Renamed 'tf.log' to 'tf.math.log'
+49:24: INFO: Renamed 'tf.log' to 'tf.math.log'
+52:20: INFO: Renamed 'tf.layers.Dense' to 'tf.compat.v1.layers.Dense'
+53:55: INFO: tf.random_normal_initializer requires manual check. Initializers no longer have the dtype argument in the constructor or partition_info argument in the __call__ method.
+The calls have been converted to compat.v1 for safety (even though they may already have been correct).
+53:55: INFO: Renamed 'tf.random_normal_initializer' to 'tf.compat.v1.random_normal_initializer'
+54:53: INFO: tf.constant_initializer requires manual check. Initializers no longer have the dtype argument in the constructor or partition_info argument in the __call__ method.
+The calls have been converted to compat.v1 for safety (even though they may already have been correct).
+54:53: INFO: Renamed 'tf.constant_initializer' to 'tf.compat.v1.constant_initializer'
+55:19: INFO: Renamed 'tf.layers.Dense' to 'tf.compat.v1.layers.Dense'
+56:54: INFO: tf.random_normal_initializer requires manual check. Initializers no longer have the dtype argument in the constructor or partition_info argument in the __call__ method.
+The calls have been converted to compat.v1 for safety (even though they may already have been correct).
+56:54: INFO: Renamed 'tf.random_normal_initializer' to 'tf.compat.v1.random_normal_initializer'
+57:52: INFO: tf.constant_initializer requires manual check. Initializers no longer have the dtype argument in the constructor or partition_info argument in the __call__ method.
+The calls have been converted to compat.v1 for safety (even though they may already have been correct).
+57:52: INFO: Renamed 'tf.constant_initializer' to 'tf.compat.v1.constant_initializer'
+65:25: INFO: Added keywords to args of function 'tf.reduce_sum'
+68:23: INFO: Added keywords to args of function 'tf.argmax'
+70:24: INFO: Added keywords to args of function 'tf.reduce_max'
+77:45: INFO: Added keywords to args of function 'tf.shape'
+79:32: INFO: Added keywords to args of function 'tf.reduce_sum'
+82:32: INFO: Added keywords to args of function 'tf.reduce_sum'
+92:18: INFO: Added keywords to args of function 'tf.reduce_sum'
+103:19: INFO: Added keywords to args of function 'tf.reduce_sum'
+105:24: INFO: Added keywords to args of function 'tf.reduce_sum'
+108:29: INFO: Added keywords to args of function 'tf.reduce_sum'
+113:24: INFO: Added keywords to args of function 'tf.reduce_sum'
+116:29: INFO: Added keywords to args of function 'tf.reduce_sum'
+119:21: INFO: Added keywords to args of function 'tf.reduce_sum'
+151:35: INFO: Renamed 'tf.log' to 'tf.math.log'
+152:24: INFO: Added keywords to args of function 'tf.reduce_sum'
+153:19: INFO: Added keywords to args of function 'tf.reduce_mean'
+153:34: INFO: Added keywords to args of function 'tf.reduce_sum'
+159:36: INFO: Renamed 'tf.log' to 'tf.math.log'
+160:42: INFO: Renamed 'tf.log' to 'tf.math.log'
+161:19: INFO: Added keywords to args of function 'tf.reduce_mean'
+162:12: INFO: Added keywords to args of function 'tf.reduce_sum'
+162:46: INFO: Added keywords to args of function 'tf.reduce_sum'
+167:19: INFO: tf.losses.absolute_difference requires manual check. tf.losses have been replaced with object oriented versions in TF 2.0 and after. The loss function calls have been converted to compat.v1 for backward compatibility. Please update these calls to the TF 2.0 versions.
+167:19: INFO: Renamed 'tf.losses.absolute_difference' to 'tf.compat.v1.losses.absolute_difference'
+186:18: INFO: Added keywords to args of function 'tf.reduce_sum'
+188:20: INFO: Added keywords to args of function 'tf.nn.embedding_lookup'
+188:20: WARNING: tf.nn.embedding_lookup requires manual check. `partition_strategy` has been removed from tf.nn.embedding_lookup.  The 'div' strategy will be used by default.
+199:22: INFO: Added keywords to args of function 'tf.reduce_sum'
+201:16: INFO: Added keywords to args of function 'tf.reduce_sum'
+205:17: INFO: Added keywords to args of function 'tf.reduce_sum'
+207:14: INFO: Added keywords to args of function 'tf.reduce_sum'
+208:25: INFO: Added keywords to args of function 'tf.reduce_sum'
+212:26: INFO: Added keywords to args of function 'tf.reduce_mean'
+213:30: INFO: Added keywords to args of function 'tf.reduce_mean'
+214:25: INFO: Added keywords to args of function 'tf.reduce_mean'
+278:13: INFO: `name` passed to `name_scope`. Because you may be re-entering an existing scope, it is not safe to convert automatically,  the v2 name_scope does not support re-entering scopes by name.
+
+278:13: INFO: Renamed 'tf.name_scope' to 'tf.compat.v1.name_scope'
+279:25: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+280:23: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+281:28: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+282:30: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+287:26: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+288:25: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+289:26: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+290:23: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+297:21: INFO: Added keywords to args of function 'tf.shape'
+298:18: INFO: Added keywords to args of function 'tf.shape'
+301:13: INFO: Renamed 'tf.variable_scope' to 'tf.compat.v1.variable_scope'
+302:31: WARNING: tf.get_variable requires manual check. tf.get_variable returns ResourceVariables by default in 2.0, which have well-defined semantics and are stricter about shapes. You can disable this behavior by passing use_resource=False, or by calling tf.compat.v1.disable_resource_variables().
+302:31: INFO: Renamed 'tf.get_variable' to 'tf.compat.v1.get_variable'
+306:28: INFO: tf.random_normal_initializer requires manual check. Initializers no longer have the dtype argument in the constructor or partition_info argument in the __call__ method.
+The calls have been converted to compat.v1 for safety (even though they may already have been correct).
+306:28: INFO: Renamed 'tf.random_normal_initializer' to 'tf.compat.v1.random_normal_initializer'
+308:25: INFO: Added keywords to args of function 'tf.nn.embedding_lookup'
+308:25: WARNING: tf.nn.embedding_lookup requires manual check. `partition_strategy` has been removed from tf.nn.embedding_lookup.  The 'div' strategy will be used by default.
+309:25: INFO: Added keywords to args of function 'tf.nn.embedding_lookup'
+309:25: WARNING: tf.nn.embedding_lookup requires manual check. `partition_strategy` has been removed from tf.nn.embedding_lookup.  The 'div' strategy will be used by default.
+312:13: INFO: Renamed 'tf.variable_scope' to 'tf.compat.v1.variable_scope'
+317:23: INFO: Renamed 'tf.nn.rnn_cell.MultiRNNCell' to 'tf.compat.v1.nn.rnn_cell.MultiRNNCell'
+318:37: INFO: Renamed 'tf.nn.dynamic_rnn' to 'tf.compat.v1.nn.dynamic_rnn'
+322:13: INFO: Renamed 'tf.variable_scope' to 'tf.compat.v1.variable_scope'
+330:13: INFO: `name` passed to `name_scope`. Because you may be re-entering an existing scope, it is not safe to convert automatically,  the v2 name_scope does not support re-entering scopes by name.
+
+330:13: INFO: Renamed 'tf.name_scope' to 'tf.compat.v1.name_scope'
+347:13: INFO: `name` passed to `name_scope`. Because you may be re-entering an existing scope, it is not safe to convert automatically,  the v2 name_scope does not support re-entering scopes by name.
+
+347:13: INFO: Renamed 'tf.name_scope' to 'tf.compat.v1.name_scope'
+351:32: INFO: Added keywords to args of function 'tf.reduce_mean'
+361:13: INFO: Renamed 'tf.variable_scope' to 'tf.compat.v1.variable_scope'
+365:23: INFO: Renamed 'tf.nn.rnn_cell.MultiRNNCell' to 'tf.compat.v1.nn.rnn_cell.MultiRNNCell'
+366:23: INFO: Renamed 'tf.layers.Dense' to 'tf.compat.v1.layers.Dense'
+367:58: INFO: tf.random_normal_initializer requires manual check. Initializers no longer have the dtype argument in the constructor or partition_info argument in the __call__ method.
+The calls have been converted to compat.v1 for safety (even though they may already have been correct).
+367:58: INFO: Renamed 'tf.random_normal_initializer' to 'tf.compat.v1.random_normal_initializer'
+368:56: INFO: tf.constant_initializer requires manual check. Initializers no longer have the dtype argument in the constructor or partition_info argument in the __call__ method.
+The calls have been converted to compat.v1 for safety (even though they may already have been correct).
+368:56: INFO: Renamed 'tf.constant_initializer' to 'tf.compat.v1.constant_initializer'
+370:16: INFO: Renamed 'tf.layers.Dense' to 'tf.compat.v1.layers.Dense'
+371:51: INFO: tf.random_normal_initializer requires manual check. Initializers no longer have the dtype argument in the constructor or partition_info argument in the __call__ method.
+The calls have been converted to compat.v1 for safety (even though they may already have been correct).
+371:51: INFO: Renamed 'tf.random_normal_initializer' to 'tf.compat.v1.random_normal_initializer'
+372:49: INFO: tf.constant_initializer requires manual check. Initializers no longer have the dtype argument in the constructor or partition_info argument in the __call__ method.
+The calls have been converted to compat.v1 for safety (even though they may already have been correct).
+372:49: INFO: Renamed 'tf.constant_initializer' to 'tf.compat.v1.constant_initializer'
+374:29: INFO: Renamed 'tf.layers.Dense' to 'tf.compat.v1.layers.Dense'
+375:64: INFO: tf.random_normal_initializer requires manual check. Initializers no longer have the dtype argument in the constructor or partition_info argument in the __call__ method.
+The calls have been converted to compat.v1 for safety (even though they may already have been correct).
+375:64: INFO: Renamed 'tf.random_normal_initializer' to 'tf.compat.v1.random_normal_initializer'
+376:62: INFO: tf.constant_initializer requires manual check. Initializers no longer have the dtype argument in the constructor or partition_info argument in the __call__ method.
+The calls have been converted to compat.v1 for safety (even though they may already have been correct).
+376:62: INFO: Renamed 'tf.constant_initializer' to 'tf.compat.v1.constant_initializer'
+378:33: INFO: Renamed 'tf.layers.Dense' to 'tf.compat.v1.layers.Dense'
+379:68: INFO: tf.random_normal_initializer requires manual check. Initializers no longer have the dtype argument in the constructor or partition_info argument in the __call__ method.
+The calls have been converted to compat.v1 for safety (even though they may already have been correct).
+379:68: INFO: Renamed 'tf.random_normal_initializer' to 'tf.compat.v1.random_normal_initializer'
+380:66: INFO: tf.constant_initializer requires manual check. Initializers no longer have the dtype argument in the constructor or partition_info argument in the __call__ method.
+The calls have been converted to compat.v1 for safety (even though they may already have been correct).
+380:66: INFO: Renamed 'tf.constant_initializer' to 'tf.compat.v1.constant_initializer'
+409:34: INFO: Added keywords to args of function 'tf.shape'
+434:27: INFO: Renamed 'tf.train.Saver' to 'tf.compat.v1.train.Saver'
+436:13: INFO: Renamed 'tf.variable_scope' to 'tf.compat.v1.variable_scope'
+437:24: INFO: Renamed 'tf.train.AdamOptimizer' to 'tf.compat.v1.train.AdamOptimizer'
+440:13: INFO: `name` passed to `name_scope`. Because you may be re-entering an existing scope, it is not safe to convert automatically,  the v2 name_scope does not support re-entering scopes by name.
+
+440:13: INFO: Renamed 'tf.name_scope' to 'tf.compat.v1.name_scope'
+455:20: INFO: Added keywords to args of function 'tf.reduce_sum'
+455:60: INFO: Added keywords to args of function 'tf.reduce_sum'
+458:20: INFO: Added keywords to args of function 'tf.reduce_sum'
+458:60: INFO: Added keywords to args of function 'tf.reduce_sum'
+460:31: INFO: Added keywords to args of function 'tf.reduce_sum'
+461:31: INFO: Added keywords to args of function 'tf.reduce_mean'
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+Processing file './v1src\\loss.py'
+ outputting to './v2src\\loss.py'
+--------------------------------------------------------------------------------
+
+96:9: INFO: `name` passed to `name_scope`. Because you may be re-entering an existing scope, it is not safe to convert automatically,  the v2 name_scope does not support re-entering scopes by name.
+
+96:9: INFO: Renamed 'tf.name_scope' to 'tf.compat.v1.name_scope'
+106:27: INFO: Changing labels arg of tf.nn.softmax_cross_entropy_with_logits to tf.stop_gradient(labels). Please check this transformation.
+
+144:17: INFO: Added keywords to args of function 'tf.shape'
+146:11: INFO: Added keywords to args of function 'tf.reduce_sum'
+146:42: INFO: Renamed 'tf.log' to 'tf.math.log'
+148:11: INFO: Added keywords to args of function 'tf.reduce_sum'
+148:33: INFO: Added keywords to args of function 'tf.reduce_sum'
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+Processing file './v1src\\main.py'
+ outputting to './v2src\\main.py'
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+Processing file './v1src\\train.py'
+ outputting to './v2src\\train.py'
+--------------------------------------------------------------------------------
+
+213:13: INFO: Renamed 'tf.variable_scope' to 'tf.compat.v1.variable_scope'
+222:8: INFO: Renamed 'tf.set_random_seed' to 'tf.compat.v1.set_random_seed'
+236:21: INFO: Renamed 'tf.ConfigProto' to 'tf.compat.v1.ConfigProto'
+238:15: INFO: Renamed 'tf.Session' to 'tf.compat.v1.Session'
+239:17: INFO: Renamed 'tf.global_variables_initializer' to 'tf.compat.v1.global_variables_initializer'
+284:28: WARNING: *.save requires manual check. (This warning is only applicable if the code saves a tf.Keras model) Keras model.save now saves to the Tensorflow SavedModel format by default, instead of HDF5. To continue saving to HDF5, add the argument save_format='h5' to the save() function.
+--------------------------------------------------------------------------------
+
