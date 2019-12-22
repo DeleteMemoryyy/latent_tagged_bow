@@ -1,8 +1,8 @@
 import tensorflow as tf
 from lbow import LatentBow
-from train import Controller
+from control import Controller
 from config import config
-from dataloader import Dataset
+from utils import Dataset
 
 
 def main():

@@ -1,11 +1,6 @@
 import tensorflow as tf
 
 
-def beamsearch_decoding():
-    """The beam search decoding algorithm, used for inference"""
-    return
-
-
 def multi_source_attention(query, memory, mem_lens, max_mem_len, state_size):
     """Attention to multiple sources
 
