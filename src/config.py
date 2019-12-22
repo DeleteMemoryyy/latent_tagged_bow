@@ -49,7 +49,6 @@ class Config:
     sample_size = 30  # 12 for mscoco, 11 for quora, 30 for wikibio
 
     is_cheat = False
-    copy = False
     num_pointers = 3
     bow_cond = False
     bow_cond_gate = False

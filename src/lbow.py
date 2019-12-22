@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.compat.v1.nn.rnn_cell import LSTMStateTuple
 
 from decoder import decode
-from loss import sequence_loss, _copy_loss
+from loss import sequence_loss
 
 
 def create_cell(name, state_size, drop_out, no_residual=False):
@@ -226,7 +226,6 @@ class LatentBow(object):
         self.stop_words = config.stop_words
         self.lambda_enc_loss = config.lambda_enc_loss
         self.no_residual = config.no_residual
-        self.copy = config.copy
         self.bow_cond = config.bow_cond
         self.bow_cond_gate = config.bow_cond_gate
         self.num_pointers = config.num_pointers
@@ -334,16 +333,6 @@ class LatentBow(object):
             dec_proj = tf.compat.v1.layers.Dense(vocab_size, name="dec_proj",
                                                  kernel_initializer=tf.compat.v1.random_normal_initializer(stddev=0.05),
                                                  bias_initializer=tf.compat.v1.constant_initializer(0.))
-            dec_ptr_k_proj = [
-                tf.compat.v1.layers.Dense(state_size, name="dec_ptr_k_proj_%d" % pi,
-                                          kernel_initializer=tf.compat.v1.random_normal_initializer(stddev=0.05),
-                                          bias_initializer=tf.compat.v1.constant_initializer(0.))
-                for pi in range(self.num_pointers)]
-            dec_ptr_g_proj = tf.compat.v1.layers.Dense(1, name="dec_ptr_g_proj",
-                                                       kernel_initializer=tf.compat.v1.random_normal_initializer(
-                                                           stddev=0.05),
-                                                       bias_initializer=tf.compat.v1.constant_initializer(0.),
-                                                       activation=tf.nn.sigmoid)
             bow_cond_gate_proj = tf.compat.v1.layers.Dense(1, name="bow_cond_gate_proj",
                                                            kernel_initializer=tf.compat.v1.random_normal_initializer(
                                                                stddev=0.05),
@@ -386,9 +375,7 @@ class LatentBow(object):
                 self.dec_start_id, dec_inputs,
                 dec_cell, dec_proj, embedding_matrix,
                 dec_init_state, dec_memory, dec_mem_len, dec_max_mem_len,
-                batch_size, max_len, state_size, multi_source=True, copy=self.copy, copy_ind=sample_ind,
-                dec_ptr_g_proj=dec_ptr_g_proj, dec_ptr_k_proj=dec_ptr_k_proj,
-                bow_cond=bow_cond, bow_cond_gate_proj=bow_cond_gate_proj)
+                batch_size, max_len, state_size, multi_source=True, bow_cond=bow_cond, bow_cond_gate_proj=bow_cond_gate_proj)
 
         # model saver, before the optimizer
         self.model_saver = tf.compat.v1.train.Saver(max_to_keep=3)
@@ -399,27 +386,13 @@ class LatentBow(object):
         # decoder output, training and inference, combined with encoder loss
         with tf.compat.v1.name_scope("dec_output"):
             dec_mask = tf.sequence_mask(dec_lens, max_len, dtype=tf.float32)
-            if (self.copy == False):
-                dec_loss = sequence_loss(
-                    dec_logits_train, dec_targets, dec_mask)
-            else:
-                dec_loss = _copy_loss(dec_prob_train, dec_targets, dec_mask)
+            dec_loss = sequence_loss(dec_logits_train, dec_targets, dec_mask)
 
             loss = dec_loss + lambda_enc_loss * enc_loss
             train_op = optimizer.minimize(loss)
 
             dec_output = {"train_op": train_op, "dec_loss": dec_loss, "loss": loss}
             self.train_output.update(dec_output)
-            if (self.copy):
-                pointer_ent = \
-                    tf.reduce_sum(input_tensor=pointer_ent * dec_mask) / tf.reduce_sum(input_tensor=dec_mask)
-                self.train_output['pointer_ent'] = pointer_ent
-                avg_max_ptr = \
-                    tf.reduce_sum(input_tensor=avg_max_ptr * dec_mask) / tf.reduce_sum(input_tensor=dec_mask)
-                self.train_output['avg_max_ptr'] = avg_max_ptr
-                avg_num_copy = tf.reduce_sum(input_tensor=avg_num_copy * dec_mask, axis=1)
-                avg_num_copy = tf.reduce_mean(input_tensor=avg_num_copy)
-                self.train_output['avg_num_copy'] = avg_num_copy
 
             self.infer_output = {"dec_predict": dec_outputs_predict}
             dec_out_mem_ratio = _calculate_dec_out_mem_ratio(dec_outputs_predict,

@@ -76,10 +76,6 @@ def decoding_infer(start_id,
                    max_mem_len,
                    state_size=500,
                    multi_source=False,
-                   copy=False,
-                   copy_ind=None,
-                   dec_ptr_g_proj=None,
-                   dec_ptr_k_proj=None,
                    bow_cond=None,
                    bow_cond_gate_proj=None):
     """The greedy decoding algorithm, used for inference"""
@@ -112,24 +108,7 @@ def decoding_infer(start_id,
         dec_logits = dec_proj(dec_out)
         vocab_dist = tf.nn.softmax(dec_logits)
 
-        if (copy):
-            print('Using copy mechanism in inference')
-            pointers = []
-            for proj_i in dec_ptr_k_proj:
-                ptr_query = proj_i(dec_out)
-                _, ptr = attention(
-                    ptr_query, memory[0], mem_lens[0], max_mem_len[0])
-                pointers.append(ptr)
-            # [num_pointers, batch_size, max_mem_len]
-            pointers = tf.stack(pointers)
-            pointers = tf.reduce_mean(input_tensor=tf.transpose(a=pointers, perm=[1, 0, 2]), axis=1)
-
-            g = dec_ptr_g_proj(dec_out)
-            mixed_dist, ptr_dist = _mix_dist(vocab_dist, pointers, copy_ind, g)
-            dec_dist = mixed_dist
-        else:
-            print('Not using copy mechanism in inference')
-            dec_dist = vocab_dist
+        dec_dist = vocab_dist
 
         dec_index = tf.argmax(input=dec_dist, axis=1, output_type=tf.int32)
 
@@ -152,42 +131,6 @@ def decoding_infer(start_id,
     return dec_outputs, dec_out_index
 
 
-def _mix_dist(vocab_dist, pointers, memory, g):
-    """Given previous decoder state, and current pointers, return the mixed
-    distribution.
-
-    Mapping the pointer distribution to the vocabulary distribution by the
-    word indices in the memory is a little bit tricky. We implement it by
-    the function scatter_nd
-
-    Args:
-      vocab_dist: shape = [batch_zize, vocab_size]
-      pointers: shape = [batch_size, mem_size]
-      memory: shape = [batch_size, max_mem_len]
-      g: shape = [batch_size], the mix gate
-
-    Returns:
-      mixed_dist: the mixed distribution
-      ptr_dist: the pointer distribution
-    """
-
-    dshape = tf.shape(input=vocab_dist)
-
-    # from the pointer and the memory, get the new distribution
-    mshape = tf.shape(input=memory)
-
-    batch_nums = tf.transpose(a=tf.reshape(tf.tile(
-        tf.range(0, mshape[0]), [mshape[1]]), (mshape[1], mshape[0])), perm=[1, 0])
-    indices = tf.concat(
-        [tf.expand_dims(batch_nums, 2), tf.expand_dims(memory, 2)],
-        2)
-
-    ptr_dist = tf.scatter_nd(indices=indices, updates=pointers,
-                             shape=dshape)
-    mixed_dist = (1 - g) * vocab_dist + g * ptr_dist
-    return mixed_dist, ptr_dist
-
-
 def decoding_train(dec_inputs,
                    dec_cell,
                    dec_proj,
@@ -198,10 +141,6 @@ def decoding_train(dec_inputs,
                    max_mem_len,
                    state_size,
                    multi_source=False,
-                   copy=False,
-                   copy_ind=None,
-                   dec_ptr_g_proj=None,
-                   dec_ptr_k_proj=None,
                    bow_cond=None,
                    bow_cond_gate_proj=None):
     """The greedy decoding algorithm, used for training"""
@@ -213,10 +152,6 @@ def decoding_train(dec_inputs,
     dec_inputs = tf.transpose(a=dec_inputs, perm=[1, 0, 2])  # [T, B, S]
     dec_state = enc_state
 
-    if (copy):
-        print('Using copy mechanism in decoding')
-    else:
-        print('Not using copy mechanism')
     if (bow_cond is not None):
         print('Using bow condition vector')
     else:
@@ -247,28 +182,6 @@ def decoding_train(dec_inputs,
         # dec_out, dec_state = dec_cell(tf.concat([dec_in, attn_vec], 1), dec_state)
         dec_out, dec_state = dec_cell(dec_in + attn_vec, dec_state)
         dec_logits = dec_proj(dec_out)
-        vocab_dist = tf.nn.softmax(dec_logits)
-
-        if (copy):
-            # the attention source is the
-            pointers = []
-            print('use %d pointers' % len(dec_ptr_k_proj))
-            for proj_i in dec_ptr_k_proj:
-                ptr_query = proj_i(dec_out)
-                _, ptr = attention(
-                    ptr_query, memory[0], mem_lens[0], max_mem_len[0])
-                pointers.append(ptr)
-            # [num_pointers, batch_size, max_mem_len]
-            pointers = tf.stack(pointers)
-            pointers = tf.reduce_mean(input_tensor=tf.transpose(a=pointers, perm=[1, 0, 2]), axis=1)
-
-            g = dec_ptr_g_proj(dec_out)
-
-            mixed_dist, ptr_dist = _mix_dist(vocab_dist, pointers, copy_ind, g)
-
-            dec_pointers = dec_pointers.write(i, pointers)
-            dec_prob_train = dec_prob_train.write(i, mixed_dist)
-            dec_g_train = dec_g_train.write(i, g)
 
         dec_outputs = dec_outputs.write(i, dec_out)
         dec_logits_train = dec_logits_train.write(i, dec_logits)
@@ -314,10 +227,6 @@ def decode(dec_start_id,
            max_dec_len,
            state_size,
            multi_source=False,
-           copy=False,
-           copy_ind=None,
-           dec_ptr_g_proj=None,
-           dec_ptr_k_proj=None,
            bow_cond=None,
            bow_cond_gate_proj=None):
     """The decoder, create the decoding graph for both training and inference"""
@@ -334,10 +243,6 @@ def decode(dec_start_id,
                                             max_mem_len,
                                             state_size,
                                             multi_source=multi_source,
-                                            copy=copy,
-                                            copy_ind=copy_ind,
-                                            dec_ptr_g_proj=dec_ptr_g_proj,
-                                            dec_ptr_k_proj=dec_ptr_k_proj,
                                             bow_cond=bow_cond,
                                             bow_cond_gate_proj=bow_cond_gate_proj)
 
@@ -353,10 +258,6 @@ def decode(dec_start_id,
             max_mem_len,
             state_size=state_size,
             multi_source=multi_source,
-            copy=copy,
-            copy_ind=copy_ind,
-            dec_ptr_g_proj=dec_ptr_g_proj,
-            dec_ptr_k_proj=dec_ptr_k_proj,
             bow_cond=bow_cond,
             bow_cond_gate_proj=bow_cond_gate_proj)
     return (dec_outputs_predict, dec_logic_train, dec_prob_train, pointer_ent,

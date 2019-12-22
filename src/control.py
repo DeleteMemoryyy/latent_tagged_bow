@@ -208,39 +208,6 @@ class Controller(object):
 
         return metrics_dict
 
-    def encoder_eval(self, model, dset, sess, mode):
-        """Only evaluate the encoder for the bow_seq2seq_2seq model"""
-        print("Evaluating the encoder ... ")
-
-        start_time = time.time()
-        batch_size = self.batch_size
-        model_name = self.model_name
-
-        num_batches = dset.num_batches(batch_size, mode)
-        print("%d batches in total" % num_batches)
-
-        metrics_dict = {"enc_infer_overlap": [],
-                        "enc_infer_pred_support": [],
-                        "enc_infer_target_support": [],
-                        "enc_infer_precision": [],
-                        "enc_infer_recall": []}
-
-        for bi in range(num_batches):
-            batch_dict = dset.next_batch(mode, batch_size, model_name)
-            output_dict = model.enc_infer_step(sess, batch_dict)
-
-            for m in output_dict:
-                if (m in metrics_dict): metrics_dict[m].append(output_dict[m])
-
-        dset.print_predict_seq2paraphrase(output_dict, batch_dict)
-
-        for m in metrics_dict:
-            metrics_dict[m] = np.average(metrics_dict[m])
-            print("%s: %.4f" % (m, metrics_dict[m]))
-        print("time cost: %.2fs" % (time.time() - start_time))
-        print("")
-        return metrics_dict
-
     def eval_generate(self, model, dset, sess, mode, ei=-1):
         """Validation or evaluation"""
         print("Evaluating ... ")
