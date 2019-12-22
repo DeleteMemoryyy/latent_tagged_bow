@@ -14,6 +14,8 @@ class Config:
     dev_index_path = "../data/quora_dev_index.txt"
     max_sent_len = {"quora": 20}  # 95 percentile
 
+    save_ckpt = True
+
     vocab_size = -1
 
     dec_start_id = 0
@@ -56,7 +58,6 @@ class Config:
     # system setting
     gpu_id = "0"
     controller_mode = "train"
-    save_ckpt = False
 
     # training hyperparameters
     batch_size = 100  # 60 for the seq2seq model, effective batch size = 100
@@ -65,8 +66,6 @@ class Config:
     train_print_interval = 500
 
     # evaluation metrics
-    # eval_metrics_list = ["bleu", "rouge", "ppl", "dist", "self_bleu", "jaccard"]
-    # eval_metrics_list = ["bleu", "rouge", "mem_cover"]
     eval_metrics_list = ["bleu"]
     log_metrics = ["predict_average_confident", "target_average"]
     write_output = True

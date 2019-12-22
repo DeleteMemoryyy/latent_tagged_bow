@@ -1,8 +1,8 @@
 import tensorflow as tf
 from tensorflow.compat.v1.nn.rnn_cell import LSTMStateTuple
-from loss import sequence_loss, _copy_loss
 
 from decoder import decode
+from loss import sequence_loss, _copy_loss
 
 
 def create_cell(name, state_size, drop_out, no_residual=False):
@@ -391,12 +391,7 @@ class LatentBow(object):
                 bow_cond=bow_cond, bow_cond_gate_proj=bow_cond_gate_proj)
 
         # model saver, before the optimizer
-        # all_variables = slim.get_variables_to_restore()
-        # model_variables = [var for var in all_variables
-        #                    if var.name.split("/")[0] == self.model_name]
-        # print("%s model, variable list:" % self.model_name)
-        # for v in model_variables: print("  %s" % v.name)
-        # self.model_saver = tf.compat.v1.train.Saver(model_variables, max_to_keep=3)
+        self.model_saver = tf.compat.v1.train.Saver(max_to_keep=3)
 
         with tf.compat.v1.variable_scope("optimizer"):
             optimizer = tf.compat.v1.train.AdamOptimizer(self.learning_rate)
@@ -435,7 +430,7 @@ class LatentBow(object):
             self.infer_output.update(seq_neighbor_output)
         return
 
-    def train_step(self, sess, batch_dict, ei):
+    def train_step(self, sess, batch_dict):
         """Single step training"""
         feed_dict = {self.enc_inputs: batch_dict["enc_inputs"],
                      self.enc_lens: batch_dict["enc_lens"],

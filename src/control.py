@@ -1,8 +1,8 @@
 import os
 import time
-import tensorflow as tf
-import numpy as np
 
+import numpy as np
+import tensorflow as tf
 from nltk.translate.bleu_score import corpus_bleu
 
 
@@ -102,6 +102,7 @@ class Controller(object):
         self.output_path = config.output_path
         self.random_seed = config.random_seed
         self.train_log = TrainingLog(config)
+        self.save_ckpt = config.save_ckpt
         self.id2word = None
         self.target_metrics = config.target_metrics
         self.eval_metrics_list = config.eval_metrics_list
@@ -160,15 +161,15 @@ class Controller(object):
 
             if (ei >= 0):
                 metrics_dict = self.eval(model, dset, sess, "test", ei=ei)
-                if (metrics_dict[target_metrics] > best_target_metrics):
+                if metrics_dict[target_metrics] > best_target_metrics:
                     best_epoch = ei
                     print("increase validation %s from %.4f to %.4f, update model" %
                           (target_metrics, best_target_metrics, metrics_dict[target_metrics]))
                     # TODO: Save model
-                    # save_path = self.model_path + "/model-e%d.ckpt" % ei
-                    # if (self.save_ckpt):
-                    #     model.model_saver.save(sess, save_path)
-                    #     print("saving model to %s" % save_path)
+                    save_path = self.model_path + "/model-e%d.ckpt" % ei
+                    if self.save_ckpt:
+                        model.model_saver.save(sess, save_path)
+                        print("saving model to %s" % save_path)
                     best_target_metrics = metrics_dict[target_metrics]
                 else:
                     print("no performance increase, keep the best model at epoch %d" %
@@ -177,15 +178,15 @@ class Controller(object):
 
             print("\nepoch %d, time cost %.2f\n" % (ei, time.time() - start_time))
             train_log.print()
-            if (self.write_output): train_log.write(ei, self.log_metrics)
+            if self.write_output: train_log.write(ei, self.log_metrics)
             train_log.reset()
             print("")
         return
 
-    def eval_metrics(self, sess, output_dict, batch_dict):
+    def eval_metrics(self, output_dict, batch_dict):
         """"""
         metrics_dict = {}
-        if ("bleu" in self.eval_metrics_list):
+        if "bleu" in self.eval_metrics_list:
             metrics_dict.update(
                 {"bleu_1": -1, "bleu_2": -1, "bleu_3": -1, "bleu_4": -1})
 
@@ -275,11 +276,11 @@ class Controller(object):
             dset.print_predict(output_dict, batch_dict,
                                output_fd)
 
-        if (bi == pred_batch):
+        if bi == pred_batch:
             print("")
             dset.print_predict(output_dict, batch_dict, None)
 
-        metrics_dict_update = self.eval_metrics(sess, output_dict, batch_dict)
+        metrics_dict_update = self.eval_metrics(output_dict, batch_dict)
         metrics_dict_update.update(output_dict)
         for m in metrics_dict_update:
             if (m in metrics_dict):
@@ -288,7 +289,7 @@ class Controller(object):
         if (bi % 20 == 0): print(".", end=" ", flush=True)
 
         print("")
-        if (self.write_output): output_fd.close()
+        if self.write_output: output_fd.close()
 
         # print('corpus level bleu:')
         # print(references[0])
