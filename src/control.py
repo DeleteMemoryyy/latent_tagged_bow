@@ -87,7 +87,7 @@ class Controller(object):
 
     def __init__(self, config):
         """Initialization from the configuration"""
-        self.model_name = 'latent_bow'
+        self.model_name = 'latent_tagged_bow'
         self.model_name_version = config.model_name + "_" + config.model_version
         self.start_epoch = config.start_epoch
         self.num_epoch = config.num_epoch
@@ -145,7 +145,7 @@ class Controller(object):
 
             for bi in range(num_batches):
                 # for bi in range(100):
-                batch_dict = dset.next_batch("train", batch_size, model_name)
+                batch_dict = dset.next_batch("train", batch_size)
                 batch_dict["drop_out"] = drop_out
                 output_dict = model.train_step(sess, batch_dict)
                 train_log.update(output_dict)
@@ -166,7 +166,7 @@ class Controller(object):
                     print("increase validation %s from %.4f to %.4f, update model" %
                           (target_metrics, best_target_metrics, metrics_dict[target_metrics]))
                     # TODO: Save model
-                    save_path = self.model_path + "/model-e%d.ckpt" % ei
+                    save_path = self.model_path + "/{}model-e{}.ckpt".format(self.model_name, ei)
                     if self.save_ckpt:
                         model.model_saver.save(sess, save_path)
                         print("saving model to %s" % save_path)
@@ -234,7 +234,7 @@ class Controller(object):
 
         for bi in range(num_batches):
             # for bi in range(50):
-            batch_dict = dset.next_batch(mode, batch_size, model_name)
+            batch_dict = dset.next_batch(mode, batch_size)
             references.extend(batch_dict['references'])
             output_dict = model.predict(sess, batch_dict)
             dec_outputs.extend(

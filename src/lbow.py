@@ -211,6 +211,8 @@ class LatentBow(object):
         self.mode = config.model_mode
         self.model_name = config.model_name
         self.vocab_size = config.vocab_size
+        self.pos_size = config.pos_size
+        self.ner_size = config.ner_size
         self.max_enc_bow = config.max_enc_bow
         self.sample_size = config.sample_size
         self.state_size = config.state_size
@@ -237,6 +239,10 @@ class LatentBow(object):
 
         vocab_size = self.vocab_size
         state_size = self.state_size
+        pos_size = self.pos_size
+        ner_size = self.ner_size
+        pos_state_size = round(state_size / 50)
+        ner_state_size = round(state_size / 50)
         enc_layers = self.enc_layers
         max_enc_bow = self.max_enc_bow
         lambda_enc_loss = self.lambda_enc_loss
@@ -245,10 +251,14 @@ class LatentBow(object):
         with tf.compat.v1.name_scope("placeholders"):
             enc_inputs = tf.compat.v1.placeholder(tf.int32, [None, None], "enc_inputs")
             enc_lens = tf.compat.v1.placeholder(tf.int32, [None], "enc_lens")
+            pos_inputs = tf.compat.v1.placeholder(tf.int32, [None, None], "pos_inputs")
+            ner_inputs = tf.compat.v1.placeholder(tf.int32, [None, None], "ner_inputs")
             self.drop_out = tf.compat.v1.placeholder(tf.float32, (), "drop_out")
 
             self.enc_inputs = enc_inputs
             self.enc_lens = enc_lens
+            self.pos_inputs = pos_inputs
+            self.ner_inputs = ner_inputs
 
             enc_targets = tf.compat.v1.placeholder(tf.int32, [None, None], "enc_targets")
             dec_inputs = tf.compat.v1.placeholder(tf.int32, [None, None], "dec_inputs")
@@ -274,15 +284,39 @@ class LatentBow(object):
             enc_inputs = tf.nn.embedding_lookup(params=embedding_matrix, ids=enc_inputs)
             dec_inputs = tf.nn.embedding_lookup(params=embedding_matrix, ids=dec_inputs)
 
+        # POS Embedding
+        with tf.compat.v1.variable_scope("pos_embeddings"):
+            pos_embedding_matrix = tf.compat.v1.get_variable(
+                name="pos_embeddings",
+                shape=[pos_size, pos_state_size],
+                dtype=tf.float32,
+                initializer=tf.random_normal_initializer(stddev=0.05)
+            )
+        pos_inputs = tf.nn.embedding_lookup(pos_embedding_matrix, pos_inputs)
+
+        # NER Embedding
+        with tf.compat.v1.variable_scope("ner_embeddings"):
+            ner_embedding_matrix = tf.compat.v1.get_variable(
+                name="ner_embeddings",
+                shape=[ner_size, ner_state_size],
+                dtype=tf.float32,
+                initializer=tf.random_normal_initializer(stddev=0.05)
+            )
+        ner_inputs = tf.nn.embedding_lookup(ner_embedding_matrix, ner_inputs)
+
+        enc_inputs = tf.concat([enc_inputs, pos_inputs, ner_inputs], 2)
+        cell_size = state_size + pos_state_size + ner_state_size
+
         # Encoder
         with tf.compat.v1.variable_scope("encoder"):
             # TODO: residual LSTM, layer normalization
             enc_cell = [create_cell(
-                "enc-%d" % i, state_size, self.drop_out, self.no_residual)
+                "enc-%d" % i, cell_size, self.drop_out, self.no_residual)
                 for i in range(enc_layers)]
             enc_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell(enc_cell)
             enc_outputs, enc_state = tf.compat.v1.nn.dynamic_rnn(enc_cell, enc_inputs,
                                                                  sequence_length=enc_lens, dtype=tf.float32)
+        enc_outputs = tf.compat.v1.layers.dense(enc_outputs, state_size, activation=tf.nn.sigmoid)
 
         # Encoder bow prediction
         with tf.compat.v1.variable_scope("bow_output"):
@@ -340,9 +374,13 @@ class LatentBow(object):
                                                            activation=tf.nn.sigmoid)
 
             dec_init_state = []
+            dec_init_state_c = tf.compat.v1.layers.dense(inputs=enc_state[0].c, units=state_size,
+                                                         activation=tf.nn.sigmoid)
+            dec_init_state_h = tf.compat.v1.layers.dense(inputs=enc_state[0].h, units=state_size,
+                                                         activation=tf.nn.sigmoid)
             for l in range(enc_layers):
-                dec_init_state.append(LSTMStateTuple(c=enc_state[0].c,
-                                                     h=enc_state[0].h + sample_memory_avg))
+                dec_init_state.append(LSTMStateTuple(c=dec_init_state_c,
+                                                     h=dec_init_state_h + sample_memory_avg))
             dec_init_state = tuple(dec_init_state)
 
             # if(enc_layers == 2):
@@ -375,7 +413,8 @@ class LatentBow(object):
                 self.dec_start_id, dec_inputs,
                 dec_cell, dec_proj, embedding_matrix,
                 dec_init_state, dec_memory, dec_mem_len, dec_max_mem_len,
-                batch_size, max_len, state_size, multi_source=True, bow_cond=bow_cond, bow_cond_gate_proj=bow_cond_gate_proj)
+                batch_size, max_len, state_size, multi_source=True, bow_cond=bow_cond,
+                bow_cond_gate_proj=bow_cond_gate_proj)
 
         # model saver, before the optimizer
         self.model_saver = tf.compat.v1.train.Saver(max_to_keep=3)
@@ -406,6 +445,8 @@ class LatentBow(object):
     def train_step(self, sess, batch_dict):
         """Single step training"""
         feed_dict = {self.enc_inputs: batch_dict["enc_inputs"],
+                     self.pos_inputs: batch_dict["pos_inputs"],
+                     self.ner_inputs: batch_dict["ner_inputs"],
                      self.enc_lens: batch_dict["enc_lens"],
                      self.enc_targets: batch_dict["enc_targets"],
                      self.dec_inputs: batch_dict["dec_inputs"],
@@ -419,6 +460,8 @@ class LatentBow(object):
         """Single step prediction"""
         feed_dict = {self.enc_inputs: batch_dict["enc_inputs"],
                      self.enc_lens: batch_dict["enc_lens"],
+                     self.pos_inputs: batch_dict["pos_inputs"],
+                     self.ner_inputs: batch_dict["ner_inputs"],
                      self.drop_out: 0.}
         output_dict = sess.run(self.infer_output, feed_dict=feed_dict)
         return output_dict

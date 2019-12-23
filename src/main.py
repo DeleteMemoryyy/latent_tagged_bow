@@ -1,7 +1,8 @@
 import tensorflow as tf
-from lbow import LatentBow
-from control import Controller
+
 from config import config
+from control import Controller
+from lbow import LatentBow
 from utils import Dataset
 
 
@@ -12,6 +13,8 @@ def main():
     dset = Dataset(config)
     dset.build()
     config.vocab_size = len(dset.word2id)
+    config.pos_size = len(dset.pos2id)
+    config.ner_size = len(dset.ner2id)
     config.dec_start_id = dset.word2id["_GOO"]
     config.dec_end_id = dset.word2id["_EOS"]
     config.pad_id = dset.pad_id

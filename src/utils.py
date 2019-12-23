@@ -1,52 +1,13 @@
-import numpy as np
-from tqdm import tqdm
-from nltk.translate.bleu_score import corpus_bleu
-from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
+import pickle
 from collections import Counter
-from config import config
 
-
-class MDataLoader:
-    def __init__(self):
-        self.path = config.dataset_path
-        self.test_index_path = config.dataset_test_index_path
-        self.sentences = []
-        self.tokens = []
-        self.test_index = []
-        self.train_tokens = []
-        self.test_tokens = []
-
-    def load(self):
-        with open(self.path, encoding='utf-8') as fd:
-            lines = fd.readlines()
-        for line in lines:
-            s1, s2 = line[:-1].split('\t')
-            self.sentences.append((s1, s2))
-            self.tokens.append((word_tokenize(s1), word_tokenize(s2)))
-        self.all_num = len(self.sentences)
-
-        with open(self.test_index_path, encoding='utf-8') as fd:
-            lines = fd.readlines()
-        for line in lines:
-            index = int(line[:-1])
-            self.test_index.append(index)
-        self.test_num = len(self.test_index)
-
-        print(len(self.tokens))
-
-    def spilt_train_test(self):
-        flag_table = [True] * self.all_num
-        for index in self.test_index:
-            if index >= self.all_num:
-                continue
-            flag_table[index] = False
-
-        for index, token in enumerate(self.tokens):
-            if flag_table[index]:
-                self.train_tokens.append(token)
-            else:
-                self.test_tokens.append(token)
+import nltk
+import numpy as np
+from nltk.chunk import tree2conlltags
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk.translate.bleu_score import corpus_bleu
+from tqdm import tqdm
 
 
 def quora_read(file_path, bleu_baseline=False):
@@ -69,16 +30,106 @@ def quora_read(file_path, bleu_baseline=False):
     return sentence_sets
 
 
+def build_batch_bow_seq2seq(data_batch,
+                            len_batch,
+                            stop_words,
+                            max_enc_bow,
+                            max_dec_bow,
+                            pad_id):
+    """Build a training batch for the bow seq2seq model"""
+    enc_inputs = []
+    pos_inputs = []
+    ner_inputs = []
+    enc_lens = []
+    enc_targets = []
+    dec_bow = []
+    dec_bow_len = []
+    dec_inputs = []
+    dec_targets = []
+    dec_lens = []
+
+    pos_batch = [j for i, j, k in data_batch]
+    ner_batch = [k for i, j, k in data_batch]
+    data_batch = [i for i, j, k in data_batch]
+
+    def _pad(s_set, max_len, pad_id):
+        s_set = list(s_set)[: max_len]
+        for i in range(max_len - len(s_set)): s_set.append(pad_id)
+        return s_set
+
+    for st, slen, pos, ner in zip(data_batch, len_batch, pos_batch, ner_batch):
+        para_bow = set()
+        for s in st: para_bow |= set(s)
+        para_bow -= stop_words
+
+        num_para = len(st)
+
+        for i in range(num_para):
+            j = (i + 1) % num_para
+            inp = st[i][: -1]
+            d_in = st[j][: -1]
+            d_out = st[j][1:]
+            len_inp = slen[i]
+            len_out = slen[j]
+
+            enc_inputs.append(inp)
+            pos_inputs.append(pos[i][: -1])
+            ner_inputs.append(ner[i][: -1])
+            enc_lens.append(len_inp)
+
+            d_bow = set(d_in) - stop_words
+            d_bow_len = len(d_bow)
+            d_bow = _pad(d_bow, max_dec_bow, pad_id)
+
+            e_bow = []
+            for k in range(num_para):
+                if (k == i):
+                    continue
+                    # if(source_bow == False):
+                    #   continue
+                e_bow.extend(st[k][: -1])
+            e_bow = set(e_bow) - stop_words
+
+            # method 1: pad bow
+            # do not predict source words
+            e_bow = _pad(e_bow, max_enc_bow, pad_id)
+
+            enc_targets.append(e_bow)
+            dec_bow.append(d_bow)
+            dec_bow_len.append(d_bow_len)
+            dec_inputs.append(d_in)
+            dec_targets.append(d_out)
+            dec_lens.append(len_out)
+
+    batch_dict = {"enc_inputs": np.array(enc_inputs),
+                  "enc_lens": np.array(enc_lens),
+                  "enc_targets": np.array(enc_targets),
+                  "dec_bow": np.array(dec_bow),
+                  "dec_bow_len": np.array(dec_bow_len),
+                  "dec_inputs": np.array(dec_inputs),
+                  "dec_targets": np.array(dec_targets),
+                  "dec_lens": np.array(dec_lens),
+                  "pos_inputs": np.array(pos_inputs),
+                  "ner_inputs": np.array(ner_inputs)}
+    return batch_dict
+
+
 def build_batch_bow_seq2seq_eval(
         data_batch, len_batch, stop_words, max_enc_bow, max_dec_bow, pad_id,
         single_ref=False):
     """Build evaluation batch, basically the same as the seq2seq setting"""
     enc_inputs = []
+    pos_inputs = []
+    ner_inputs = []
     enc_lens = []
     references = []
     dec_golden_bow = []
     dec_bow = []
     dec_bow_len = []
+
+    pos_batch = [j for i, j, k in data_batch]
+    ner_batch = [k for i, j, k in data_batch]
+    data_batch = [i for i, j, k in data_batch]
 
     def _pad(s_set, max_len, pad_id):
         s_set = list(s_set)[: max_len]
@@ -92,8 +143,10 @@ def build_batch_bow_seq2seq_eval(
             s_set.append(np.random.choice(s_set_))
         return s_set
 
-    for st, slen in zip(data_batch, len_batch):
+    for st, slen, pos, ner in zip(data_batch, len_batch, pos_batch, ner_batch):
         inp = st[0][: -1]
+        pos_inputs.append(pos[0][: -1])
+        ner_inputs.append(ner[0][: -1])
         len_inp = slen[0]
         if (single_ref):
             ref = [s_[1: s_len_] for s_, s_len_ in zip(st[-1:], slen[-1:])]
@@ -102,7 +155,8 @@ def build_batch_bow_seq2seq_eval(
 
         golden_bow = []
         for r in ref: golden_bow.extend(r)
-        golden_bow = set(golden_bow) - stop_words
+        golden_bow = set(golden_bow)
+        golden_bow = golden_bow - stop_words
         golden_bow = _pad_golden(golden_bow, max_enc_bow)
 
         d_in = st[1][: -1]
@@ -122,93 +176,9 @@ def build_batch_bow_seq2seq_eval(
                   "golden_bow": np.array(dec_golden_bow),
                   "dec_bow": np.array(dec_bow),
                   "dec_bow_len": np.array(dec_bow_len),
-                  "references": references}
-    return batch_dict
-
-
-def build_batch_bow_seq2seq(data_batch,
-                            len_batch,
-                            stop_words,
-                            max_enc_bow,
-                            max_dec_bow,
-                            pad_id):
-    """Build a training batch for the bow seq2seq model"""
-    enc_inputs = []
-    enc_lens = []
-    enc_targets = []
-    dec_bow = []
-    dec_bow_len = []
-    dec_inputs = []
-    dec_targets = []
-    dec_lens = []
-
-    def _pad(s_set, max_len, pad_id):
-        s_set = list(s_set)[: max_len]
-        for i in range(max_len - len(s_set)): s_set.append(pad_id)
-        return s_set
-
-    for st, slen in zip(data_batch, len_batch):
-        para_bow = set()
-        for s in st: para_bow |= set(s)
-        para_bow -= stop_words
-        para_bow = _pad(para_bow, max_enc_bow, pad_id)
-
-        num_para = len(st)
-
-        for i in range(num_para):
-            j = (i + 1) % num_para
-            inp = st[i][: -1]
-            d_in = st[j][: -1]
-            d_out = st[j][1:]
-            len_inp = slen[i]
-            len_out = slen[j]
-
-            enc_inputs.append(inp)
-            enc_lens.append(len_inp)
-
-            d_bow = set(d_in) - stop_words
-            d_bow_len = len(d_bow)
-            d_bow = _pad(d_bow, max_dec_bow, pad_id)
-
-            e_bow = []
-            for k in range(num_para):
-                if (k == i):
-                    continue
-                    # if(source_bow == False):
-                    #   continue
-                e_bow.extend(st[k][: -1])
-            e_bow = set(e_bow) - stop_words
-
-            # method 1: pad bow
-            e_bow = _pad(e_bow, max_enc_bow, pad_id)
-
-            # method 2: repeat bow
-            # e_bow = list(e_bow)
-            # e_bow_ = []
-            # i = 0
-            # while(len(e_bow_) < max_enc_bow):
-            #   e_bow_.append(e_bow[i])
-            #   i = (i + 1) % len(e_bow)
-            # e_bow = e_bow_
-
-            enc_targets.append(e_bow)
-
-            # enc_targets.append(para_bow)
-
-            dec_bow.append(d_bow)
-            dec_bow_len.append(d_bow_len)
-            dec_inputs.append(d_in)
-            dec_targets.append(d_out)
-            dec_lens.append(len_out)
-
-    batch_dict = {"enc_inputs": np.array(enc_inputs),
-                  "enc_lens": np.array(enc_lens),
-                  "enc_targets": np.array(enc_targets),
-                  "dec_bow": np.array(dec_bow),
-                  "dec_bow_len": np.array(dec_bow_len),
-                  "dec_inputs": np.array(dec_inputs),
-                  "dec_targets": np.array(dec_targets),
-                  "dec_lens": np.array(dec_lens)}
+                  "references": references,
+                  "pos_inputs": np.array(pos_inputs),
+                  "ner_inputs": np.array(ner_inputs)}
     return batch_dict
 
 
@@ -245,6 +215,17 @@ class Dataset(object):
         self.dataset_path = config.dataset_path[self.dataset]
         self.train_index_path = config.train_index_path
         self.dev_index_path = config.dev_index_path
+        self.read_from_pickle = config.read_from_pickle
+        self.word2id_path = config.word2id_path
+        self.id2word_path = config.id2word_path
+        self.pos2id_path = config.pos2id_path
+        self.id2pos_path = config.id2pos_path
+        self.ner2id_path = config.ner2id_path
+        self.id2ner_path = config.id2ner_path
+        self.train_sentences_path = config.train_sentences_path
+        self.train_lens_path = config.train_lens_path
+        self.dev_sentences_path = config.dev_sentences_path
+        self.dev_lens_path = config.dev_lens_path
         self.max_sent_len = config.max_sent_len[self.dataset]
         self.max_enc_bow = config.max_enc_bow
         self.max_dec_bow = config.max_dec_bow
@@ -287,34 +268,75 @@ class Dataset(object):
         * normalize the text
         """
         # read training sentences
-        train_sentences = quora_read(self.dataset_path["train"])
+        if self.read_from_pickle:
+            with open(self.word2id_path, "rb") as word2id_file:
+                word2id = pickle.load(word2id_file)
+            with open(self.id2word_path, "rb") as id2word_file:
+                id2word = pickle.load(id2word_file)
+            with open(self.pos2id_path, "rb") as pos2id_file:
+                pos2id = pickle.load(pos2id_file)
+            with open(self.id2pos_path, "rb") as id2pos_file:
+                id2pos = pickle.load(id2pos_file)
+            with open(self.ner2id_path, "rb") as ner2id_file:
+                ner2id = pickle.load(ner2id_file)
+            with open(self.id2ner_path, "rb") as id2ner_file:
+                id2ner = pickle.load(id2ner_file)
 
-        # corpus_statistics(train_sentences)
+            with open(self.train_sentences_path, "rb") as train_sentences_file:
+                train_sentences = pickle.load(train_sentences_file)
+            with open(self.train_lens_path, "rb") as train_lens_file:
+                train_lens = pickle.load(train_lens_file)
+            with open(self.dev_sentences_path, "rb") as dev_sentences_file:
+                dev_sentences = pickle.load(dev_sentences_file)
+            with open(self.dev_lens_path, "rb") as dev_lens_file:
+                dev_lens = pickle.load(dev_lens_file)
 
-        train_sentences, dev_sentences = train_dev_split(
-            self.dataset, train_sentences, self.train_index_path, self.dev_index_path)
 
-        word2id, id2word = get_vocab(train_sentences)
+        else:
+            train_sentences = quora_read(self.dataset_path["train"])
 
-        train_sentences, train_lens = normalize(
-            train_sentences, word2id, self.max_sent_len)
-        dev_sentences, dev_lens = normalize(
-            dev_sentences, word2id, self.max_sent_len)
+            train_sentences, dev_sentences = train_dev_split(
+                self.dataset, train_sentences, self.train_index_path, self.dev_index_path)
 
-        # test_sentences = mscoco_read_json(self.dataset_path["test"])
-        # test_sentences, test_lens = normalize(
-        #   test_sentences, word2id, self.max_sent_len)
+            word2id, id2word, pos2id, id2pos, ner2id, id2ner = get_vocab(train_sentences)
+            with open(self.word2id_path, "wb") as word2id_file:
+                pickle.dump(word2id, word2id_file)
+            with open(self.id2word_path, "wb") as id2word_file:
+                pickle.dump(id2word, id2word_file)
+            with open(self.pos2id_path, "wb") as pos2id_file:
+                pickle.dump(pos2id, pos2id_file)
+            with open(self.id2pos_path, "wb") as id2pos_file:
+                pickle.dump(id2pos, id2pos_file)
+            with open(self.ner2id_path, "wb") as ner2id_file:
+                pickle.dump(ner2id, ner2id_file)
+            with open(self.id2ner_path, "wb") as id2ner_file:
+                pickle.dump(id2ner, id2ner_file)
+
+            train_sentences, train_lens = normalize(
+                train_sentences, word2id, pos2id, ner2id, self.max_sent_len)
+            dev_sentences, dev_lens = normalize(
+                dev_sentences, word2id, pos2id, ner2id, self.max_sent_len)
+            with open(self.train_sentences_path, "wb") as train_sentences_file:
+                pickle.dump(train_sentences, train_sentences_file)
+            with open(self.train_lens_path, "wb") as train_lens_file:
+                pickle.dump(train_lens, train_lens_file)
+            with open(self.dev_sentences_path, "wb") as dev_sentences_file:
+                pickle.dump(dev_sentences, dev_sentences_file)
+            with open(self.dev_lens_path, "wb") as dev_lens_file:
+                pickle.dump(dev_lens, dev_lens_file)
 
         self.word2id = word2id
         self.id2word = id2word
+        self.pos2id = pos2id
+        self.id2pos = id2pos
+        self.ner2id = ner2id
+        self.id2ner = id2ner
         self.start_id = word2id["_GOO"]
         self.eos_id = word2id["_EOS"]
         self.unk_id = word2id["_UNK"]
         self.pad_id = word2id["_PAD"]
-        self.stop_words = set(
-            [word2id[w] if (w in word2id) else self.pad_id for w in self.stop_words])
-        self.stop_words |= set(
-            [self.start_id, self.eos_id, self.unk_id, self.pad_id])
+        self.stop_words = set([word2id[w] if (w in word2id) else self.pad_id for w in self.stop_words])
+        self.stop_words |= {self.start_id, self.eos_id, self.unk_id, self.pad_id}
 
         self._dataset["train"] = train_sentences
         self._dataset["test"] = dev_sentences
@@ -324,7 +346,7 @@ class Dataset(object):
         # self._sent_lens["test"] = test_lens
         return
 
-    def next_batch(self, setname, batch_size, model_name):
+    def next_batch(self, setname, batch_size):
         """Get next data batch
 
         Args:
@@ -385,8 +407,7 @@ class Dataset(object):
                 is_break = True
         return s_out
 
-    def print_predict(self,
-                      output_dict, batch_dict, fd=None):
+    def print_predict(self, output_dict, batch_dict, fd=None):
         """Print out the prediction"""
         self.print_predict_latent_bow(output_dict, batch_dict, fd)
         return
@@ -426,166 +447,9 @@ class Dataset(object):
                 print(out)
         return
 
-    def print_gumbel(self, output_dict, batch_dict, fd=None):
-        """Print the gumbel sampes """
-        if (fd == None):
-            print_range = 5
-        else:
-            print_range = len(output_dict[0]["dec_predict"])
-        for i in range(print_range):
-            dec_out_i = []
-            for j in range(len(output_dict)):
-                dec_out_i.append(output_dict[j]["dec_predict"][i])
-            dec_out_i = np.array(dec_out_i)
-            if (np.all((dec_out_i - dec_out_i[0]) == 0)): continue
-
-            out = "inputs:\n"
-            out += "    " + self.decode_sent(batch_dict["enc_inputs"][i]) + "\n\n"
-            for j in range(len(output_dict)):
-                # out += "sample %d, input neighbors:\n" % j
-                # out += self.decode_neighbor(batch_dict["enc_inputs"][i],
-                #                             output_dict[j]["seq_neighbor_ind"][i],
-                #                             output_dict[j]["seq_neighbor_prob"][i])
-                # out += "sample %d, enc_output_bow:\n" % j
-                # out += "    " + self.decode_sent(output_dict[j]["bow_pred_ind"][i]) + "\n"
-                out += "sample %d, enc_sampled_memory:\n" % j
-                out += "    " + self.decode_sent(
-                    output_dict[j]["sample_memory_ind"][i],
-                    prob=output_dict[j]["sample_memory_prob"][i]) + "\n"
-                out += "sample %d, dec_outputs:\n" % j
-                out += "    " + self.decode_sent(
-                    output_dict[j]["dec_predict"][i]) + "\n\n"
-            # out += "references:\n"
-            # for r in batch_dict["references"][i]:
-            #   out += "    " + self.decode_sent(r) + "\n"
-            out += "----\n"
-            if (fd is not None):
-                fd.write(out + "\n")
-            else:
-                print(out)
-        return
-
-    def print_predict_bow_seq2seq(self, output_dict, batch_dict):
-        """Print the predicted sentences for the bag of words - sequence to
-        sequence model
-
-        Things to print:
-          * The input sentence
-          * The predicted bow
-          * The sample from the bow
-          * The predicted sentence
-          * The references
-        """
-        enc_sentences = batch_dict["enc_inputs"]
-        enc_outputs = output_dict["pred_ind"]
-        dec_samples = output_dict["dec_sample_bow"]
-        dec_outputs = output_dict["dec_predict"]
-        references = batch_dict["references"]
-
-        for i, (es, eo, ds, do, rf) in enumerate(zip(enc_sentences, enc_outputs,
-                                                     dec_samples, dec_outputs, references)):
-            print("inputs:")
-            print("    " + self.decode_sent(es))
-            print("enc_outputs:")
-            print("    " + self.decode_sent(eo))
-            print("dec_samples:")
-            print("    " + self.decode_sent(ds))
-            print("dec_outputs:")
-            print("    " + self.decode_sent(do))
-            print("reference:")
-            for r in rf:
-                print("    " + self.decode_sent(r))
-            print("")
-
-            if (i == 5): break
-        return
-
-    def print_predict_seq2seq(
-            self, output_dict, batch_dict, fd=None, num_cases=6):
-        """Print the predicted sentences for the sequence to sequence model"""
-        predict = output_dict["dec_predict"]
-        inputs = batch_dict["enc_inputs"]
-        references = batch_dict["references"]
-        batch_size = output_dict["dec_predict"].shape[0]
-        for i in range(batch_size):
-            str_out = 'inputs:\n'
-            str_out += self.decode_sent(inputs[i]) + '\n'
-            str_out += 'outputs:\n'
-            str_out += self.decode_sent(predict[i]) + '\n'
-            str_out += "references:\n"
-            for r in references[i]:
-                str_out += self.decode_sent(r) + '\n'
-            str_out += '----\n'
-            if (i < num_cases): print(str_out)
-            if (fd is not None): fd.write(str_out)
-        return
-
-    def print_predict_seq2paraphrase(self, output_dict, batch_dict, num_cases=3):
-        """Print the predicted sentences, sequence to k sequence model (given a
-          sentence, predict all k possible paraphrases)"""
-        inputs = batch_dict["enc_inputs"][:3]
-        references = batch_dict["references"][:3]
-        for i in range(num_cases):
-            print("inputs:")
-            print("    " + self.decode_sent(inputs[i]))
-            pred_para = output_dict["enc_infer_pred"][i]
-            print("paraphrase outputs:")
-            for p in pred_para:
-                print("    " + self.decode_sent(p))
-            print("references:")
-            for r in references[i]:
-                print("    " + self.decode_sent(r))
-            print("")
-        return
-
-    def print_random_walk(self, random_walk_outputs, batch_dict, num_cases=3):
-        """Print the random walk outputs"""
-        inputs = batch_dict["enc_inputs"][:3]
-        references = batch_dict["references"][:3]
-        for i in range(num_cases):
-            print("inputs:")
-            print("    " + self.decode_sent(inputs[i]))
-            for d in random_walk_outputs:
-                print("->")
-                print("    " + self.decode_sent(d["predict"][i]))
-            print("references:")
-            for r in references[i]:
-                print("    " + self.decode_sent(r))
-            print("")
-        return
-
-    def print_bow(self, output_dict, batch_dict):
-        """Print the bow prediction: the input sentence, the target bow, and the
-        predicted bow. """
-        enc_sentences = batch_dict["enc_inputs"]
-        enc_targets = batch_dict["enc_targets"]
-        enc_outputs = output_dict["pred_ind"]
-
-        def _decode_set(s, shared):
-            output = []
-            for si in s:
-                if (si in shared):
-                    output.append("[" + self.id2word[si] + "]")
-                else:
-                    output.append(self.id2word[si])
-            return
-
-        for i, (s, t, o) in enumerate(zip(enc_sentences, enc_targets, enc_outputs)):
-            if (i in [0, 1, 5, 6, 10, 11, 15, 16]):
-                print("inputs:")
-                print("    " + self.decode_sent(s))
-                shared = set(t) & set(o)
-                print("targets:")
-                print("    " + _decode_set(set(t) - set([self.pad_id]), shared))
-                print("outputs:")
-                print("    " + _decode_set(set(o), shared))
-                print("")
-            if (i == 16): break
-        return
-
 
 # nlp tools
-def normalize(sentence_sets, word2id, max_sent_len):
+def normalize(sentence_sets, word2id, pos2id, ner2id, max_sent_len):
     """Normalize the sentences by the following procedure
     - word to index
     - add unk
@@ -601,8 +465,13 @@ def normalize(sentence_sets, word2id, max_sent_len):
     sent_len_sets = []
     max_sent_len = max_sent_len + 1
 
+    pos_sets = []
+    ner_sets = []
+
     for st in sentence_sets:
         st_ = []
+        pt_ = []
+        nt_ = []
         st_len = []
         for s in st:
             s_ = [word2id["_GOO"]]
@@ -611,6 +480,23 @@ def normalize(sentence_sets, word2id, max_sent_len):
                     s_.append(word2id[w])
                 else:
                     s_.append(word2id["_UNK"])
+            p_ = []
+            tagged_set = nltk.pos_tag(s)
+            for ss, t in tagged_set:
+                if (t in pos2id):
+                    p_.append(pos2id[t])
+                else:
+                    p_.append(pos2id["_UNK"])
+            p_.append(pos2id["_EOS"])
+            n_ = []
+            ner_set = tree2conlltags(nltk.ne_chunk(tagged_set))
+            for i, j, k in ner_set:
+                if (j in ner2id):
+                    n_.append(ner2id[j])
+                else:
+                    n_.append(ner2id["_UNK"])
+            n_.append(ner2id["_EOS"])
+
             s_.append(word2id["_EOS"])
 
             s_ = s_[: max_sent_len]
@@ -621,61 +507,21 @@ def normalize(sentence_sets, word2id, max_sent_len):
                 s_[-1] = word2id["_EOS"]
                 s_len = max_sent_len - 1
 
+            p_ = p_[: max_sent_len]
+            if (len(p_) < max_sent_len):
+                for i in range(max_sent_len - len(p_)): p_.append(pos2id["_PAD"])
+            n_ = n_[: max_sent_len]
+            if (len(n_) < max_sent_len):
+                for i in range(max_sent_len - len(n_)): n_.append(ner2id["_PAD"])
             st_.append(s_)
             st_len.append(s_len)
-
+            pt_.append(p_)
+            nt_.append(n_)
+        pos_sets.append(pt_)
+        ner_sets.append(nt_)
         sent_sets.append(st_)
         sent_len_sets.append(st_len)
-    return sent_sets, sent_len_sets
-
-
-def corpus_statistics(sentence_sets, vocab_size_threshold=5):
-    """Calculate basic corpus statistics"""
-    print("Calculating basic corpus statistics .. ")
-
-    stop_words = set(stopwords.words('english'))
-
-    # size of paraphrase sets
-    paraphrase_size = [len(st) for st in sentence_sets]
-    paraphrase_size = Counter(paraphrase_size)
-    print("paraphrase size, %d different types:" % (len(paraphrase_size)))
-    print(paraphrase_size.most_common(10))
-
-    # sentence length
-    sentence_lens = []
-    sentence_bow_len = []
-    paraphrase_bow_len = []
-    for st in sentence_sets:
-        sentence_lens.extend([len(s) for s in st])
-        st_bow = set()
-        for s in st:
-            s_ = set(s) - stop_words
-            sentence_bow_len.append(len(s_))
-            st_bow |= s_
-        paraphrase_bow_len.append(len(st_bow))
-
-    sent_len_percentile = np.percentile(sentence_lens, [80, 90, 95])
-    print("sentence length percentile:")
-    print(sent_len_percentile)
-
-    sentence_bow_percentile = np.percentile(sentence_bow_len, [80, 90, 95])
-    print("sentence bow length percentile")
-    print(sentence_bow_percentile)
-
-    paraphrase_bow_percentile = np.percentile(paraphrase_bow_len, [80, 90, 95])
-    print("paraphrase bow length percentile")
-    print(paraphrase_bow_percentile)
-
-    # vocabulary
-    vocab = []
-    for st in sentence_sets:
-        for s in st:
-            vocab.extend(s)
-    vocab = Counter(vocab)
-    print("vocabulary size: %d" % len(vocab))
-    vocab_truncate = [w for w in vocab if vocab[w] >= vocab_size_threshold]
-    print("vocabulary size, occurance >= 5: %d" % len(vocab_truncate))
-    return
+    return list(zip(sent_sets, pos_sets, ner_sets)), sent_len_sets
 
 
 def get_vocab(training_set, vocab_size_threshold=5):
@@ -699,4 +545,83 @@ def get_vocab(training_set, vocab_size_threshold=5):
 
     assert (len(word2id) == len(id2word))
     print("vocabulary size: %d" % len(word2id))
-    return word2id, id2word
+
+    tags = []
+    ners = []
+    for st in training_set:
+        for s in st:
+            tagged_st = nltk.pos_tag(s)
+            for s, t in tagged_st:
+                tags.append(t)
+            ner_st = tree2conlltags(nltk.ne_chunk(tagged_st))
+            for i, j, k in ner_st:
+                ners.append(j)
+
+    tags = Counter(tags)
+    ners = Counter(ners)
+
+    pos2id = {"_GOO": 0, "_EOS": 1, "_PAD": 2, "_UNK": 3}
+    id2pos = {0: "_GOO", 1: "_EOS", 2: "_PAD", 3: "_UNK"}
+
+    ner2id = {"_GOO": 0, "_EOS": 1, "_PAD": 2, "_UNK": 3}
+    id2ner = {0: "_GOO", 1: "_EOS", 2: "_PAD", 3: "_UNK"}
+
+    i = len(pos2id)
+    for t in tags:
+        pos2id[t] = i
+        id2pos[i] = t
+        i += 1
+
+    i = len(ner2id)
+    for n in ners:
+        ner2id[n] = i
+        id2ner[i] = n
+        i += 1
+
+    assert (len(pos2id) == len(id2pos))
+    assert (len(ner2id) == len(id2ner))
+    print("pos size: %d" % len(pos2id))
+    print("ner size: %d" % len(ner2id))
+
+    return word2id, id2word, pos2id, id2pos, ner2id, id2ner
+
+# class MDataLoader:
+#     def __init__(self):
+#         self.path = config.dataset_path
+#         self.test_index_path = config.dataset_test_index_path
+#         self.sentences = []
+#         self.tokens = []
+#         self.test_index = []
+#         self.train_tokens = []
+#         self.test_tokens = []
+#
+#     def load(self):
+#         with open(self.path, encoding='utf-8') as fd:
+#             lines = fd.readlines()
+#         for line in lines:
+#             s1, s2 = line[:-1].split('\t')
+#             self.sentences.append((s1, s2))
+#             self.tokens.append((word_tokenize(s1), word_tokenize(s2)))
+#         self.all_num = len(self.sentences)
+#
+#         with open(self.test_index_path, encoding='utf-8') as fd:
+#             lines = fd.readlines()
+#         for line in lines:
+#             index = int(line[:-1])
+#             self.test_index.append(index)
+#         self.test_num = len(self.test_index)
+#
+#         print(len(self.tokens))
+#
+#     def spilt_train_test(self):
+#         flag_table = [True] * self.all_num
+#         for index in self.test_index:
+#             if index >= self.all_num:
+#                 continue
+#             flag_table[index] = False
+#
+#         for index, token in enumerate(self.tokens):
+#             if flag_table[index]:
+#                 self.train_tokens.append(token)
+#             else:
+#                 self.test_tokens.append(token)

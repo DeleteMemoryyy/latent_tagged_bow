@@ -1,8 +1,12 @@
 class Config:
-    # def __init__(self):
-    # self.dataset_path = '../data/quora.txt'
-    # self.dataset_test_index_path = '../data/quora_dev_index.txt'
 
+    # training hyperparameters
+    batch_size = 100  # 60 for the seq2seq model, effective batch size = 100
+    start_epoch = 0
+    num_epoch = 100
+    train_print_interval = 500
+
+    # dataset setting
     dataset = "quora"
     dataset_path = {
         "quora": {
@@ -12,6 +16,20 @@ class Config:
     }
     train_index_path = "../data/quora_train_index.txt"
     dev_index_path = "../data/quora_dev_index.txt"
+
+    # pickle
+    read_from_pickle = True
+    word2id_path = "../data/word2id.pickle"
+    id2word_path = "../data/id2word.pickle"
+    pos2id_path = "../data/pos2id.pickle"
+    id2pos_path = "../data/id2pos.pickle"
+    ner2id_path = "../data/ner2id.pickle"
+    id2ner_path = "../data/id2ner.pickle"
+    train_sentences_path = "../data/train_sentences.pickle"
+    train_lens_path = "../data/train_lens.pickle"
+    dev_sentences_path = "../data/dev_sentences.pickle"
+    dev_lens_path = "../data/dev_lens.pickle"
+
     max_sent_len = {"quora": 20}  # 95 percentile
 
     save_ckpt = True
@@ -57,12 +75,6 @@ class Config:
     # system setting
     gpu_id = "0"
     controller_mode = "train"
-
-    # training hyperparameters
-    batch_size = 100  # 60 for the seq2seq model, effective batch size = 100
-    start_epoch = 0
-    num_epoch = 20
-    train_print_interval = 500
 
     # evaluation metrics
     eval_metrics_list = ["bleu"]
