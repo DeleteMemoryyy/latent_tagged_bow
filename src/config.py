@@ -5,6 +5,8 @@ class Config:
     start_epoch = 0
     num_epoch = 100
     train_print_interval = 500
+    add_pos = True
+    add_ner = True
 
     # dataset setting
     dataset = "quora"
