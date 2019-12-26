@@ -231,6 +231,8 @@ class LatentBow(object):
         self.bow_cond = config.bow_cond
         self.bow_cond_gate = config.bow_cond_gate
         self.num_pointers = config.num_pointers
+        self.add_pos = config.add_pos
+        self.add_ner = config.add_ner
         return
 
     def build(self):
@@ -304,8 +306,13 @@ class LatentBow(object):
             )
         ner_inputs = tf.nn.embedding_lookup(ner_embedding_matrix, ner_inputs)
 
-        enc_inputs = tf.concat([enc_inputs, pos_inputs, ner_inputs], 2)
-        cell_size = state_size + pos_state_size + ner_state_size
+        cell_size = state_size
+        if self.add_pos:
+            enc_inputs = tf.concat([enc_inputs, pos_inputs], 2)
+            cell_size = cell_size + pos_state_size
+        if self.add_ner:
+            enc_inputs = tf.concat([enc_inputs, ner_inputs], 2)
+            cell_size = cell_size + ner_state_size
 
         # Encoder
         with tf.compat.v1.variable_scope("encoder"):
